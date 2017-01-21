@@ -69,9 +69,12 @@ class State extends Phaser.State {
     this.player.body.setCollisionGroup(this.playerCollisionGroup);
     this.player.body.collides([this.playerCollisionGroup, this.musicFloorCollisionGroup]);
     this.player.body.collides(this.deadCollisionGroup);
+    this.player.body.collides(this.scrollCollisionGroup);
+    
+    this.player.scollGot = 0;
 
     //  Check for the block hitting another object
-    this.player.body.onBeginContact.add(this.hurtPlayer, this);
+    this.player.body.onBeginContact.add(this.touchPlayer, this);
     this.deadzones = this.setupDeadZones();
     this.scrolls = this.setup_level_1();
     this.scrollGoal = this.scrolls.length;
@@ -153,11 +156,11 @@ class State extends Phaser.State {
   setupDeadZones() {
     var currentX = 0;
     var output = [];
-    const deadline_y = game.height - DEADLINE_HEIGHT;
+    const deadline_y = game.height - DEADLINE_HEIGHT/2;
     while (currentX < game.width) {
       var deadzone = game.add.sprite(currentX, deadline_y, 'spears');
-      game.physics.p2.enable(deadzone);
       deadzone.anchor.setTo(0,0);
+      game.physics.p2.enable(deadzone);
       deadzone.body.static=true;
       deadzone.body.setCollisionGroup(this.deadCollisionGroup);
 
@@ -227,20 +230,20 @@ class State extends Phaser.State {
 
   }
 
-  hurtPlayer(body, bodyB, shapeA, shapeB, equation) {
-    console.log("hurtPlayer");
+  touchPlayer(body, bodyB, shapeA, shapeB, equation) {
+    console.log("touchPlayer");
     if (body && body.sprite && body.sprite.key === 'spears') {
       console.log("spears");
       this.player.lifeCount--;
       this.lifeText.setText(this.player.lifeCount);
       this.player.body.y = 30;
-    }
-  }
-
-  getScroll(sprite1, sprite2) {
-    this.player.scollGot++;
-    if (this.player.scollGot >= this.scrollGoal) {
-       //win
+    } else if (body && body.sprite && body.sprite.key === 'scroll') {
+      console.log("scroll");
+      this.player.scollGot++;
+      body.sprite.destroy();
+      if (this.player.scollGot >= this.scrollGoal) {
+         console.log("win");
+      }
     }
   }
 
