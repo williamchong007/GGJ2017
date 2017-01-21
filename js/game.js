@@ -11,6 +11,7 @@ class State extends Phaser.State {
     game.load.image('wall', 'assets/sprites/platform.png');
     game.load.image('background', 'assets/sprites/dayBG.png');
     game.load.image('spears', 'assets/sprites/spikes.png');
+    game.load.image('scroll', 'assets/sprites/scroll.png');
   }
 
 
@@ -30,6 +31,7 @@ class State extends Phaser.State {
     this.cursors = game.input.keyboard.createCursorKeys();
 
     this.jumpTimer = 0;
+    this.scrollGoal = 0;
 
     //  Enable p2 physics
     game.physics.startSystem(Phaser.Physics.P2JS);
@@ -42,6 +44,7 @@ class State extends Phaser.State {
     this.playerCollisionGroup = game.physics.p2.createCollisionGroup();
     this.musicFloorCollisionGroup = game.physics.p2.createCollisionGroup();
     this.deadCollisionGroup = game.physics.p2.createCollisionGroup();
+    this.scrollCollisionGroup = game.physics.p2.createCollisionGroup();
 
     // to still collide with the world bounds
     game.physics.p2.updateBoundsCollisionGroup();
@@ -68,17 +71,35 @@ class State extends Phaser.State {
     this.player.body.collides([this.playerCollisionGroup, this.musicFloorCollisionGroup, this.deadCollisionGroup]);
 
     this.deadzones = this.setupDeadZones();
+    this.scrolls = this.setup_level_1();
+    this.scrollGoal = this.scrolls.length;
 
     soundModule.signal.add((...params) => { this.onSound(...params); });
   }
 
+
+  setup_level_1 () {
+    var output = [];
+    var scroll = game.add.sprite(1250, 150, 'scroll');
+    //  Enable if for physics. This creates a default rectangular body.
+    game.physics.p2.enable(scroll);
+    scroll.body.static = true;
+
+    scroll.body.setCollisionGroup(this.scrollCollisionGroup);
+    scroll.body.collides([this.playerCollisionGroup, this.scrollCollisionGroup]);
+    output.push(scroll);
+    return output
+  }
+
+
   setupDeadZones() {
     var currentX = 0;
     var output = [];
-    const deadline_y = game.height - DEADLINE_HEIGHT/2;
+    const deadline_y = game.height - DEADLINE_HEIGHT;
     while (currentX < game.width) {
       var deadzone = game.add.sprite(currentX, deadline_y, 'spears');
       game.physics.p2.enable(deadzone);
+      deadzone.anchor.setTo(0,0);
       deadzone.body.static=true;
       deadzone.body.setCollisionGroup(this.deadCollisionGroup);
       deadzone.body.collides([this.playerCollisionGroup], this.hurtPlayer, this);
@@ -151,6 +172,13 @@ class State extends Phaser.State {
     console.log("hurtPlayer");
     this.player.lifeCount--;
     this.lifeText.setText(this.player.lifeCount);
+  }
+
+  getScroll(sprite1, sprite2) {
+    this.player.scollGot++;
+    if (this.player.scollGot >= this.scrollGoal) {
+       //win 
+    }
   }
 
   onSound(y0Pitch, y1Pitch, y0Amplitude, y1Amplitude) {
