@@ -87,8 +87,10 @@ class State extends Phaser.State {
     this.player.body.collides([this.playerCollisionGroup, this.musicFloorCollisionGroup]);
     this.player.body.collides([this.deadCollisionGroup, this.scrollCollisionGroup]);
 
+    this.player.scollGot = 0;
+
     //  Check for the block hitting another object
-    this.player.body.onBeginContact.add(this.hurtPlayer, this);
+    this.player.body.onBeginContact.add(this.touchPlayer, this);
     this.deadzones = this.setupDeadZones();
     this.scrolls = this.setup_level_1();
     this.player.scollGot = 0;
@@ -111,10 +113,67 @@ class State extends Phaser.State {
     return output
   }
 
+  setup_level_2 () {
+    var output = [];
+
+    var scrollCoord = [[1250,150],[830,400],[430,320]]
+
+    for(var i = 0; i < scrollCoord.length;i++){
+      var scroll = game.add.sprite(scrollCoord[i][0], scrollCoord[i][1], 'scroll');
+      //  Enable if for physics. This creates a default rectangular body.
+      game.physics.p2.enable(scroll);
+      scroll.body.static = true;
+
+      scroll.body.setCollisionGroup(this.scrollCollisionGroup);
+      scroll.body.collides([this.playerCollisionGroup, this.scrollCollisionGroup]);
+      output.push(scroll);
+    }
+    return output
+  }
+
+  setup_level_3_stage_1 () {
+    var output = [];
+    var scroll = game.add.sprite(230, 150, 'scroll');
+    //  Enable if for physics. This creates a default rectangular body.
+    game.physics.p2.enable(scroll);
+    scroll.body.static = true;
+
+    scroll.body.setCollisionGroup(this.scrollCollisionGroup);
+    scroll.body.collides([this.playerCollisionGroup, this.scrollCollisionGroup]);
+    output.push(scroll);
+    return output
+  }
+
+  setup_level_3_stage_2 () {
+    var output = [];
+    var scroll = game.add.sprite(430, 280, 'scroll');
+    //  Enable if for physics. This creates a default rectangular body.
+    game.physics.p2.enable(scroll);
+    scroll.body.static = true;
+
+    scroll.body.setCollisionGroup(this.scrollCollisionGroup);
+    scroll.body.collides([this.playerCollisionGroup, this.scrollCollisionGroup]);
+    output.push(scroll);
+    return output
+  }
+
+  setup_level_3_stage_3 () {
+    var output = [];
+    var scroll = game.add.sprite(830, 380, 'scroll');
+    //  Enable if for physics. This creates a default rectangular body.
+    game.physics.p2.enable(scroll);
+    scroll.body.static = true;
+
+    scroll.body.setCollisionGroup(this.scrollCollisionGroup);
+    scroll.body.collides([this.playerCollisionGroup, this.scrollCollisionGroup]);
+    output.push(scroll);
+    return output
+  }
+
   setupDeadZones() {
     var currentX = 0;
     var output = [];
-    const deadline_y = game.height - DEADLINE_HEIGHT;
+    const deadline_y = game.height - DEADLINE_HEIGHT/2;
     while (currentX < game.width) {
       var deadzone = game.add.sprite(currentX, deadline_y, 'spears');
       deadzone.anchor.setTo(0, 0);
@@ -189,8 +248,8 @@ class State extends Phaser.State {
 
   }
 
-  hurtPlayer(body, bodyB, shapeA, shapeB, equation) {
-    console.log("hurtPlayer");
+  touchPlayer(body, bodyB, shapeA, shapeB, equation) {
+    console.log("touchPlayer");
     if (body && body.sprite && body.sprite.key === 'spears') {
       console.log("spears");
       this.player.lifeCount--;
