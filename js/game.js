@@ -352,8 +352,8 @@ class State extends Phaser.State {
 
   onSound(y0Pitch, y1Pitch, y0Amplitude, y1Amplitude) {
     console.log(y0Pitch + " " + y1Pitch);
-    const normalized0 = y0Pitch / 6.5;
-    const normalized1 = y1Pitch / 6.5;
+    const normalized0 = y0Pitch ;
+    const normalized1 = y1Pitch ;
     var index = Math.round(normalized0 * NUMBER_OF_PITCH) % NUMBER_OF_PITCH;
     var index1 = Math.round(normalized1 * NUMBER_OF_PITCH) % NUMBER_OF_PITCH;
     //var singIndex = Math.round(normalized0 * 11);
@@ -376,9 +376,9 @@ class State extends Phaser.State {
         elem.loadTexture('wall');
 
         if (elem.y < game.height - DEADLINE_HEIGHT) {
-          elem.body.moveDown(50);
+          elem.body.moveDown(80);
         } else if (elem.y < game.height) {
-          elem.body.moveDown(25);
+          elem.body.moveDown(40);
         } else {
           elem.body.y = game.height;
           elem.body.setZeroVelocity();
