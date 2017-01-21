@@ -4,6 +4,15 @@ var yAxis = p2.vec2.fromValues(0, 1);
 const DEADLINE_HEIGHT = 160;
 const PLATFORM_WIDTH = 100;
 const PLAYER_INIT_LIFE_COUNT = 4;
+const NUMBER_OF_PITCH = 12;
+const SUPER_COOL_DOWN = 2;
+const KNIFE_COOL_DOWN = 5000;
+
+
+function indexToGameHeight(index) {
+  var total = game.height - 160;
+  return index*total/NUMBER_OF_PITCH;
+}
 
 class State extends Phaser.State {
   preload() {
@@ -12,6 +21,7 @@ class State extends Phaser.State {
     game.load.image('background', 'assets/sprites/dayBG.png');
     game.load.image('spears', 'assets/sprites/spikes.png');
     game.load.image('scroll', 'assets/sprites/scroll.png');
+    game.load.image('knife', 'assets/sprites/knife.png');
   }
 
 
@@ -96,9 +106,24 @@ class State extends Phaser.State {
     this.player.scollGot = 0;
     this.scrollGoal = this.scrolls.length;
 
+    this.knifeIsCooldown = false;
+
     soundModule.signal.add((...params) => { this.onSound(...params); });
   }
 
+  setPlayerSuper() {
+    var that = this;
+    this.playerSuper = true;
+    this.superTimer = setTimeout(function(){that.playerSuper = false;}, SUPER_COOL_DOWN);
+  }
+
+
+  setKnifeTimeout() {
+    var that = this;
+    this.knifeIsCooldown = true;
+    this.knife = null;
+    this.knifeTimer = setTimeout(function(){that.knifeIsCooldown = false;}, KNIFE_COOL_DOWN);
+  }
 
   setup_level_1() {
     var output = [];
@@ -110,6 +135,7 @@ class State extends Phaser.State {
     scroll.body.setCollisionGroup(this.scrollCollisionGroup);
     scroll.body.collides([this.playerCollisionGroup]);
     output.push(scroll);
+    this.knifeEnabled = true;
     return output
   }
 
@@ -170,6 +196,22 @@ class State extends Phaser.State {
     return output
   }
 
+  createKnife(y_index) {
+    const knife = game.add.sprite(game.width, indexToGameHeight(y_index), 'knife');
+    game.physics.p2.enable(knife);
+    knife.body.kinematic=true;
+    knife.body.setCollisionGroup(this.deadCollisionGroup);
+    knife.body.collides(this.playerCollisionGroup);
+    knife.body.moveLeft(256);
+    this.knife = knife;
+  }
+
+  moveKnife(y_index) {
+    if (this.knife) {
+      this.knife.body.y= (this.knife.body.y + indexToGameHeight(y_index)) / 2;
+    }
+  }
+
   setupDeadZones() {
     var currentX = 0;
     var output = [];
@@ -222,6 +264,10 @@ class State extends Phaser.State {
       this.player.body.moveUp(300);
       this.jumpTimer = game.time.now + 750;
     }
+    if(this.knife && this.knife.x <0){
+      this.knife.destroy();
+      this.setKnifeTimeout();
+    }
   }
 
   checkIfCanJump() {
@@ -250,11 +296,12 @@ class State extends Phaser.State {
 
   touchPlayer(body, bodyB, shapeA, shapeB, equation) {
     console.log("touchPlayer");
-    if (body && body.sprite && body.sprite.key === 'spears') {
+    if (body && body.sprite && (body.sprite.key === 'spears' ||  body.sprite.key === 'knife') && !this.playerSuper ) {
       console.log("spears");
       this.player.lifeCount--;
       this.lifeText.setText(this.player.lifeCount);
       this.player.body.y = 30;
+      this.checkLose();
     } else if (body && body.sprite && body.sprite.key === 'scroll') {
       console.log("scroll");
       this.getScroll();
@@ -295,14 +342,21 @@ class State extends Phaser.State {
 
   nextRoom() {
     console.log('nextRoom');
+  }
 
+  checkLose() {
+    if (0 >= this.player.lifeCount) {
+      //lose
+    }
   }
 
   onSound(y0Pitch, y1Pitch, y0Amplitude, y1Amplitude) {
+    console.log(y0Pitch + " " + y1Pitch);
     const normalized0 = y0Pitch / 6.5;
     const normalized1 = y1Pitch / 6.5;
-    var index = Math.round(normalized0 * 12);
-    var singIndex = Math.round(normalized0 * 11);
+    var index = Math.round(normalized0 * NUMBER_OF_PITCH) % NUMBER_OF_PITCH;
+    var index1 = Math.round(normalized1 * NUMBER_OF_PITCH) % NUMBER_OF_PITCH;
+    //var singIndex = Math.round(normalized0 * 11);
     // console.log('noteStrings', soundModule.noteStrings[index]);
     //console.log('onSound',
     // normalized0, soundModule.noteStrings[singIndex],
@@ -333,6 +387,14 @@ class State extends Phaser.State {
         // elem.y = Phaser.Math.linear(elem.y, 500, 0.01);
       }
     });
+
+    if (normalized1 > 0 && this.knifeEnabled) {
+      if (!this.knife && !this.knifeIsCooldown) {
+        this.createKnife(index1);
+      } else {
+        this.moveKnife(index1);
+      }
+    }
   }
 
   createWall(x, y) {
