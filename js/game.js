@@ -102,21 +102,21 @@ class State extends Phaser.State {
     var scrollCoord = [[1250,150],[830,400],[430,320]]
 
     for(var i = 0; i < scrollCoord.length;i++){
-    var scroll = game.add.sprite(scrollCoord[i][0], 'scroll');
-    //  Enable if for physics. This creates a default rectangular body.
-    game.physics.p2.enable(scroll);
-    scroll.body.static = true;
+      var scroll = game.add.sprite(scrollCoord[i][0], scrollCoord[i][1], 'scroll');
+      //  Enable if for physics. This creates a default rectangular body.
+      game.physics.p2.enable(scroll);
+      scroll.body.static = true;
 
-    scroll.body.setCollisionGroup(this.scrollCollisionGroup);
-    scroll.body.collides([this.playerCollisionGroup, this.scrollCollisionGroup]);
-    output.push(scroll);
-  }
+      scroll.body.setCollisionGroup(this.scrollCollisionGroup);
+      scroll.body.collides([this.playerCollisionGroup, this.scrollCollisionGroup]);
+      output.push(scroll);
+    }
     return output
   }
 
   setup_level_3_stage_1 () {
     var output = [];
-      var scroll = game.add.sprite(230, 150, 'scroll');
+    var scroll = game.add.sprite(230, 150, 'scroll');
     //  Enable if for physics. This creates a default rectangular body.
     game.physics.p2.enable(scroll);
     scroll.body.static = true;
@@ -129,7 +129,7 @@ class State extends Phaser.State {
 
   setup_level_3_stage_2 () {
     var output = [];
-      var scroll = game.add.sprite(430, 280, 'scroll');
+    var scroll = game.add.sprite(430, 280, 'scroll');
     //  Enable if for physics. This creates a default rectangular body.
     game.physics.p2.enable(scroll);
     scroll.body.static = true;
@@ -142,7 +142,7 @@ class State extends Phaser.State {
 
   setup_level_3_stage_3 () {
     var output = [];
-      var scroll = game.add.sprite(830, 380, 'scroll');
+    var scroll = game.add.sprite(830, 380, 'scroll');
     //  Enable if for physics. This creates a default rectangular body.
     game.physics.p2.enable(scroll);
     scroll.body.static = true;
