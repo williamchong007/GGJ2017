@@ -1,7 +1,7 @@
 soundModule = (function () {
 
 
-    var SMOOTH_TICK_COUNT = 6;
+    var SMOOTH_TICK_COUNT = 10;
     var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     var source = [];
 
@@ -45,7 +45,7 @@ soundModule = (function () {
     var signal = new Phaser.Signal();
 
     function noteFromPitch(frequency) {
-        if(frequency == 0) return 0;
+        if (frequency == 0) return 0;
         var noteNum = 12 * (Math.log(frequency / 440) / Math.log(2));
         return (noteNum + 69) % 12;
     }
@@ -187,14 +187,17 @@ soundModule = (function () {
                 drawRAF = setTimeout(draw, 100);
                 var freqData = new Uint8Array(inputanalyser[0].frequencyBinCount);
                 inputanalyser[0].getByteFrequencyData(freqData);
+
                 total = 0;
                 for (let i = 0; i < freqData.length; i++) {
                     total += parseFloat(freqData[i]);
                 }
+
                 var level = LEVEL_SCALE * total / freqData.length;
                 history_a0.push(level);
                 inputanalyser[1].getByteFrequencyData(freqData);
                 total = 0;
+
                 for (let i = 0; i < freqData.length; i++) {
                     total += parseFloat(freqData[i]);
                 }
@@ -209,135 +212,144 @@ soundModule = (function () {
                 var ac1 = autoCorrelate(dataArray, audioCtx.sampleRate) || 0;
                 ac1 = (ac1 == -1) ? 0 : ac1;
 
-                // canvasCtx.fillStyle = 'rgb(200, 200, 200)';
-                // canvasCtx.fillRect(0, 0, WIDTH, HEIGHT);
-
-                // canvasCtx.lineWidth = 2;
-                // canvasCtx.strokeStyle = 'rgb(0, 0, 0)';
-
-                // canvasCtx.beginPath();
-
-                // var sliceWidth = WIDTH * 1.0 / bufferLength;
                 var x = 0;
-                // var v = [];
-                // v[0] = 0;
-                // v[1] = 0;
-                // for(var i = 0; i < bufferLength; i++) {
+                y0smoothingCache.push(noteFromPitch(ac0));
+                y1smoothingCache.push(noteFromPitch(ac1));
 
-                //   v[0] += dataArray[0][i];
-                //   y[0] = v[0]/bufferLength;
-                //   v[1] += dataArray[1][i];
-                //   y[1] = v[1]/bufferLength;
-
-                // }
-                y0smoothingCache.push(noteFromPitch(ac0))
                 if (y0smoothingCache.length >= SMOOTH_TICK_COUNT) {
-                    
-                    let sum = y0smoothingCache.reduce((previous, current) => current + previous);
-                    y[0] = sum / y0smoothingCache.length;
+
+                    // let sum = (y0smoothingCache
+                    //     .slice(-SMOOTH_TICK_COUNT)
+                    //     .reduce((previous, current) => current + previous)
+                    // );
+                    // const y0Pitch = y[0] = sum / y0smoothingCache.length;
+                    const smoothed0 = smoothOut(y0smoothingCache.slice(-SMOOTH_TICK_COUNT), 0.3);
+                    const y0Pitch = y[1] = smoothed0[smoothed0.length-1];
                     //console.log(y[0])
                     // y[0] *= canvas.height / 24;
-                    y0smoothingCache.length = 0;
+                    // y0smoothingCache.length = 0;
                     history0.push(y[0]);
-                }
-                y1smoothingCache.push(noteFromPitch(ac1))
-                
-                if (y1smoothingCache.length >= SMOOTH_TICK_COUNT) {
-                    let sum = y1smoothingCache.reduce((previous, current) => current += previous);
-                    y[1] = sum / y1smoothingCache.length;
+
+                    // sum = y1smoothingCache.reduce((previous, current) => current += previous);
+                    // const y1Pitch = y[1] = sum / y1smoothingCache.length;
+                    const smoothed1 = smoothOut(y1smoothingCache.slice(-SMOOTH_TICK_COUNT), 0.85);
+                    const y1Pitch = y[1] = smoothed1[smoothed1.length-1];
+                    
                     // y[1] *= canvas.height / 30;
-                    y1smoothingCache.length = 0;
+                    // y1smoothingCache.length = 0;
                     history1.push(y[1]);
+
+
+                    function avg(v) {
+                        return v.reduce((a, b) => a + b, 0) / v.length;
+                    }
+
+                    function smoothOut(vector, variance) {
+                        var t_avg = avg(vector) * variance;
+                        var ret = Array(vector.length);
+                        for (var i = 0; i < vector.length; i++) {
+                            (function () {
+                                var prev = i > 0 ? ret[i - 1] : vector[i];
+                                var next = i < vector.length ? vector[i] : vector[i - 1];
+                                ret[i] = avg([t_avg, avg([prev, vector[i], next])]);
+                            })();
+                        }
+                        return ret;
+                    }
+
+                    const y0Amplitude = history_a0[history_a0.length - 1];
+                    const y1Amplitude = history_a1[history_a1.length - 1];
+                    signal.dispatch(y0Pitch, y1Pitch, y0Amplitude, y1Amplitude);
                 }
 
-                const i = Math.floor(history_a0.length / 2);
-                // console.log('hi histoyr', history0);
-                // console.log('hi NaN', history0[i], history1[history1.length - i - 1]);
+            }
 
-                // console.log('hi auntie', history0[i] - history1[history1.length - i - 1]);
-                // console.log('hi auntie', history_a0[i] - history_a1[history_a1.length - i - 1]);
+            // const i = Math.floor(history_a0.length / 2);
+            // console.log('hi histoyr', history0);
+            // console.log('hi NaN', history0[i], history1[history1.length - i - 1]);
 
-                // console.log('hi y 01', y[0], y[1]);
-                signal.dispatch(y[0], y[1], history_a0);
+            // console.log('hi auntie', history0[i] - history1[history1.length - i - 1]);
+            // console.log('hi auntie', history_a0[i] - history_a1[history_a1.length - i - 1]);
 
-                // we've got all data at this point
+            // console.log('hi y 01', y[0], y[1]);
 
-                // canvasCtx.moveTo(0, canvas.height / 2);
-                // for (let i = history0.length; i > 0; i--) {
-                //     x += sliceWidth;
-                //     canvasCtx.moveTo(x, canvas.height / 2);
-                //     canvasCtx.lineTo(x, history0[i] - history1[history1.length - i - 1] + canvas.height / 2);
-                // }
-                // canvasCtx.stroke();
+            // we've got all data at this point
 
-
-                // canvasCtx.strokeStyle = 'rgb(255, 0, 0)';
-
-                // canvasCtx.beginPath();
-                // canvasCtx.moveTo(0, canvas.height / 2);
-                // x = 0;
-                // for (let i = history_a0.length; i > 0; i--) {
-                //     x += sliceWidth;
-                //     canvasCtx.moveTo(x, canvas.height / 2);
-                //     canvasCtx.lineTo(x, history_a0[i] - history_a1[history_a1.length - i - 1] + canvas.height / 2);
-                // }
-                // canvasCtx.stroke();
+            // canvasCtx.moveTo(0, canvas.height / 2);
+            // for (let i = history0.length; i > 0; i--) {
+            //     x += sliceWidth;
+            //     canvasCtx.moveTo(x, canvas.height / 2);
+            //     canvasCtx.lineTo(x, history0[i] - history1[history1.length - i - 1] + canvas.height / 2);
+            // }
+            // canvasCtx.stroke();
 
 
-                // advance time
-                if (history0.length >= bufferLength) {
-                    history0.shift();
-                    history1.shift();
-                    history_a0.shift();
-                    history_a1.shift();
-                }
-                history0.push(0);
-                history1.push(0);
-                history_a0.push(0);
-                history_a1.push(0);
-            };
+            // canvasCtx.strokeStyle = 'rgb(255, 0, 0)';
 
-            draw();
+            // canvasCtx.beginPath();
+            // canvasCtx.moveTo(0, canvas.height / 2);
+            // x = 0;
+            // for (let i = history_a0.length; i > 0; i--) {
+            //     x += sliceWidth;
+            //     canvasCtx.moveTo(x, canvas.height / 2);
+            //     canvasCtx.lineTo(x, history_a0[i] - history_a1[history_a1.length - i - 1] + canvas.height / 2);
+            // }
+            // canvasCtx.stroke();
 
-            // } else if(visualSetting == "frequencybars") {
-            //   analyser.fftSize = 256;
-            //   var bufferLength = analyser.frequencyBinCount;
-            //   console.log(bufferLength);
-            //   var dataArray = new Uint8Array(bufferLength);
 
-            //   canvasCtx.clearRect(0, 0, WIDTH, HEIGHT);
+            // advance time
+            if (history0.length >= bufferLength) {
+                history0.shift();
+                history1.shift();
+                history_a0.shift();
+                history_a1.shift();
+            }
+            history0.push(0);
+            history1.push(0);
+            history_a0.push(0);
+            history_a1.push(0);
+        };
 
-            //   function draw() {
-            //     drawRAF = requestAnimationFrame(draw);
+        draw();
 
-            //     analyser.getByteFrequencyData(dataArray);
+        // } else if(visualSetting == "frequencybars") {
+        //   analyser.fftSize = 256;
+        //   var bufferLength = analyser.frequencyBinCount;
+        //   console.log(bufferLength);
+        //   var dataArray = new Uint8Array(bufferLength);
 
-            //     canvasCtx.fillStyle = 'rgb(0, 0, 0)';
-            //     canvasCtx.fillRect(0, 0, WIDTH, HEIGHT);
+        //   canvasCtx.clearRect(0, 0, WIDTH, HEIGHT);
 
-            //     var barWidth = (WIDTH / bufferLength) * 2.5;
-            //     var barHeight;
-            //     var x = 0;
+        //   function draw() {
+        //     drawRAF = requestAnimationFrame(draw);
 
-            //     for(var i = 0; i < bufferLength; i++) {
-            //       barHeight = dataArray[i];
+        //     analyser.getByteFrequencyData(dataArray);
 
-            //       canvasCtx.fillStyle = 'rgb(' + (barHeight+100) + ',50,50)';
-            //       canvasCtx.fillRect(x,HEIGHT-barHeight/2,barWidth,barHeight/2);
+        //     canvasCtx.fillStyle = 'rgb(0, 0, 0)';
+        //     canvasCtx.fillRect(0, 0, WIDTH, HEIGHT);
 
-            //       x += barWidth + 1;
-            //     }
-            //   };
+        //     var barWidth = (WIDTH / bufferLength) * 2.5;
+        //     var barHeight;
+        //     var x = 0;
 
-            //   draw();
+        //     for(var i = 0; i < bufferLength; i++) {
+        //       barHeight = dataArray[i];
 
-            // } else if(visualSetting == "off") {
-            //   canvasCtx.clearRect(0, 0, WIDTH, HEIGHT);
-            //   canvasCtx.fillStyle = "red";
-            //   canvasCtx.fillRect(0, 0, WIDTH, HEIGHT);
-        }
+        //       canvasCtx.fillStyle = 'rgb(' + (barHeight+100) + ',50,50)';
+        //       canvasCtx.fillRect(x,HEIGHT-barHeight/2,barWidth,barHeight/2);
 
+        //       x += barWidth + 1;
+        //     }
+        //   };
+
+        //   draw();
+
+        // } else if(visualSetting == "off") {
+        //   canvasCtx.clearRect(0, 0, WIDTH, HEIGHT);
+        //   canvasCtx.fillStyle = "red";
+        //   canvasCtx.fillRect(0, 0, WIDTH, HEIGHT);
     }
+
 
     function voiceChange() {
 
@@ -353,6 +365,6 @@ soundModule = (function () {
 
     // event listeners to change visualize and voice settings
 
-    return {signal, noteStrings};
+    return { signal, noteStrings };
 
 } ());

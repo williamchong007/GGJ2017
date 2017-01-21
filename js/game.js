@@ -1,7 +1,7 @@
 
 /* global soundModule */
 var yAxis = p2.vec2.fromValues(0, 1);
-var PLATFORM_STEPS = 13;
+var PLATFORM_STEPS = 50;
 
 class State extends Phaser.State {
   preload() {
@@ -37,7 +37,7 @@ class State extends Phaser.State {
     this.musicFloors = [];
     const xInterval = game.width / PLATFORM_STEPS;
     for (let i = 0; i < PLATFORM_STEPS; i++) {
-      const musicFloor = this.createMusicFloor(i * xInterval, 550);
+      const musicFloor = this.createMusicFloor(i * xInterval, 510);
       this.musicFloors.push(musicFloor);
     }
 
@@ -67,8 +67,7 @@ class State extends Phaser.State {
       // if (player.facing != 'right') {
       //   player.facing = 'right';
       // }
-    }
-    else {
+    } else {
       this.player.body.velocity.x = 0;
 
       // if (player.facing != 'idle') {
@@ -83,7 +82,7 @@ class State extends Phaser.State {
     }
 
     if (this.cursors.up.isDown && game.time.now > this.jumpTimer && this.checkIfCanJump()) {
-      this.player.body.moveUp(200);
+      this.player.body.moveUp(300);
       this.jumpTimer = game.time.now + 750;
     }
   }
@@ -112,20 +111,33 @@ class State extends Phaser.State {
 
   }
 
-  onSound(p1, p2) {
-    console.log('onSound', p1, p2);
-    var index = Math.round(p1);
-    console.log('noteStrings', soundModule.noteStrings[index]);
+  onSound(y0Pitch, y1Pitch, y0Amplitude, y1Amplitude) {
+    const normalized0 = y0Pitch / 6.5;
+    const normalized1 = y1Pitch / 6.5;
+    var index = Math.round(normalized0 * PLATFORM_STEPS);
+    var singIndex = Math.round(normalized0 * 11);
+    // console.log('noteStrings', soundModule.noteStrings[index]);
+    console.log('onSound',
+      normalized0, soundModule.noteStrings[singIndex],
+      normalized1, '');
     this.musicFloors.forEach((elem, id) => {
-      if (id === index) {
-        elem.body.moveUp( 50);
+      if (Math.abs(id - index) < 3) {
+        // const heightLimit = 500 - y0Amplitude * 70;
+        const heightLimit = 500 - 400;
+        if (elem.y > heightLimit) {
+          elem.body.moveUp(300);
+        } else {
+          elem.body.y = heightLimit;
+          elem.body.setZeroVelocity();
+        }
         elem.loadTexture('kuro');
       } else {
         elem.loadTexture('wall');
 
-        if (elem.y < 560) {
-          elem.body.moveDown(10);
+        if (elem.y < 510) {
+          elem.body.moveDown(50);
         } else {
+          elem.body.y = 510;
           elem.body.setZeroVelocity();
         }
 
