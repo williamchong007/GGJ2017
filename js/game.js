@@ -1,16 +1,30 @@
 
 /* global soundModule */
 var yAxis = p2.vec2.fromValues(0, 1);
-var PLATFORM_STEPS = 50;
+var PLATFORM_STEPS = 10;
+const DEADLINE_HEIGHT =  160;
+const PLAYER_INIT_LIFE_COUNT = 4;
 
 class State extends Phaser.State {
   preload() {
-    game.load.image('kuro', 'assets/sprites/KuroDefault.png');
-    game.load.image('wall', 'assets/sprites/Wall.png');
+    game.load.image('character', 'assets/sprites/character.png');
+    game.load.image('wall', 'assets/sprites/platform.png');
+    game.load.image('background', 'assets/sprites/dayBG.png');
+    game.load.image('spears', 'assets/sprites/spikes.png');
   }
 
 
   create() {
+    game.add.tileSprite(0, 0, 1280, 720, 'background');
+
+    this.lifeText = game.add.text(20, 20, "4", {
+        font: "20px Arial",
+        fill: "#ff0044",
+        align: "center"
+    });
+
+    this.lifeText.anchor.setTo(0, 0);
+
     game.stage.backgroundColor = "#4488AA";
 
     this.cursors = game.input.keyboard.createCursorKeys();
@@ -27,13 +41,14 @@ class State extends Phaser.State {
     //  Create our collision groups. One for the player, one for the music floors
     this.playerCollisionGroup = game.physics.p2.createCollisionGroup();
     this.musicFloorCollisionGroup = game.physics.p2.createCollisionGroup();
+    this.deadCollisionGroup = game.physics.p2.createCollisionGroup();
 
     // to still collide with the world bounds
     game.physics.p2.updateBoundsCollisionGroup();
 
-    for (let i = 0; i < 100; i++) {
-      const wall = this.createWall(10 * i, 500);
-    }
+    // for (let i = 0; i < 100; i++) {
+    //   const wall = this.createWall(100 * i, 500);
+    // }
     this.musicFloors = [];
     const xInterval = game.width / PLATFORM_STEPS;
     for (let i = 0; i < PLATFORM_STEPS; i++) {
@@ -41,15 +56,34 @@ class State extends Phaser.State {
       this.musicFloors.push(musicFloor);
     }
 
-    this.player = game.add.sprite(300, 300, 'kuro');
-    this.player.scale.setTo(4);
+    this.player = game.add.sprite(300, 300, 'character');
+    this.player.lifeCount = PLAYER_INIT_LIFE_COUNT;
+    this.player.scale.setTo(1);
     //  Enable if for physics. This creates a default rectangular body.
     game.physics.p2.enable(this.player);
 
     this.player.body.setCollisionGroup(this.playerCollisionGroup);
-    this.player.body.collides([this.playerCollisionGroup, this.musicFloorCollisionGroup]);
+    this.player.body.collides([this.playerCollisionGroup, this.musicFloorCollisionGroup, this.deadCollisionGroup]);
+
+    this.deadzones = this.setupDeadZones();
 
     soundModule.signal.add((...params) => { this.onSound(...params); });
+  }
+
+  setupDeadZones() {
+    var currentX = 0;
+    var output = [];
+    const deadline_y = game.height - DEADLINE_HEIGHT/2;
+    while (currentX < game.width) {
+      var deadzone = game.add.sprite(currentX, deadline_y, 'spears');
+      game.physics.p2.enable(deadzone);
+      deadzone.body.static=true;
+      deadzone.body.setCollisionGroup(this.deadCollisionGroup);
+      deadzone.body.collides([this.playerCollisionGroup], this.hurtPlayer, this);
+      output.push(deadzone);
+      currentX += deadzone.width;
+    }
+    return output;
   }
 
   update() {
@@ -111,15 +145,21 @@ class State extends Phaser.State {
 
   }
 
+  hurtPlayer(sprite1, sprite2) {
+    console.log("hurtPlayer");
+    this.player.lifeCount--;
+    this.lifeText.setText(this.player.lifeCount);
+  }
+
   onSound(y0Pitch, y1Pitch, y0Amplitude, y1Amplitude) {
     const normalized0 = y0Pitch / 6.5;
     const normalized1 = y1Pitch / 6.5;
     var index = Math.round(normalized0 * PLATFORM_STEPS);
     var singIndex = Math.round(normalized0 * 11);
     // console.log('noteStrings', soundModule.noteStrings[index]);
-    console.log('onSound',
-      normalized0, soundModule.noteStrings[singIndex],
-      normalized1, '');
+    //console.log('onSound',
+      // normalized0, soundModule.noteStrings[singIndex],
+      // normalized1, '');
     this.musicFloors.forEach((elem, id) => {
       if (Math.abs(id - index) < 3) {
         // const heightLimit = 500 - y0Amplitude * 70;
@@ -130,14 +170,16 @@ class State extends Phaser.State {
           elem.body.y = heightLimit;
           elem.body.setZeroVelocity();
         }
-        elem.loadTexture('kuro');
+        elem.loadTexture('wall');
       } else {
         elem.loadTexture('wall');
 
-        if (elem.y < 510) {
+        if (elem.y < game.height - DEADLINE_HEIGHT) {
           elem.body.moveDown(50);
+        } else if (elem.y < game.height) {
+          elem.body.moveDown(25);
         } else {
-          elem.body.y = 510;
+          elem.body.y = game.height;
           elem.body.setZeroVelocity();
         }
 
@@ -146,15 +188,15 @@ class State extends Phaser.State {
     });
   }
 
-  createWall(x, y) {
-    var wall = game.add.sprite(x, y, 'wall');
-    game.physics.p2.enable(wall);
-    wall.body.static = true;
+  // createWall(x, y) {
+  //   var wall = game.add.sprite(x, y, 'wall');
+  //   game.physics.p2.enable(wall);
+  //   wall.body.static = true;
 
-    wall.body.setCollisionGroup(this.playerCollisionGroup);
-    wall.body.collides([this.playerCollisionGroup]);
-    return wall;
-  }
+  //   wall.body.setCollisionGroup(this.playerCollisionGroup);
+  //   wall.body.collides([this.playerCollisionGroup]);
+  //   return wall;
+  // }
 
   createMusicFloor(x, y) {
     var wall = game.add.sprite(x, y, 'wall');
@@ -168,4 +210,4 @@ class State extends Phaser.State {
 }
 
 var game = new Phaser.Game(
-  800, 600, Phaser.AUTO, 'wrapper', new State());
+  1280, 720, Phaser.AUTO, 'wrapper', new State());
