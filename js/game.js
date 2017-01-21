@@ -2,7 +2,7 @@
 /* global soundModule */
 var yAxis = p2.vec2.fromValues(0, 1);
 var PLATFORM_STEPS = 10;
-const DEADLINE_HEIGHT =  160;
+const DEADLINE_HEIGHT = 160;
 const PLAYER_INIT_LIFE_COUNT = 4;
 
 class State extends Phaser.State {
@@ -18,9 +18,9 @@ class State extends Phaser.State {
     game.add.tileSprite(0, 0, 1280, 720, 'background');
 
     this.lifeText = game.add.text(20, 20, "4", {
-        font: "20px Arial",
-        fill: "#ff0044",
-        align: "center"
+      font: "20px Arial",
+      fill: "#ff0044",
+      align: "center"
     });
 
     this.lifeText.anchor.setTo(0, 0);
@@ -58,13 +58,15 @@ class State extends Phaser.State {
 
     this.player = game.add.sprite(300, 300, 'character');
     this.player.lifeCount = PLAYER_INIT_LIFE_COUNT;
-    this.player.scale.setTo(1);
     //  Enable if for physics. This creates a default rectangular body.
     game.physics.p2.enable(this.player);
 
     this.player.body.setCollisionGroup(this.playerCollisionGroup);
-    this.player.body.collides([this.playerCollisionGroup, this.musicFloorCollisionGroup, this.deadCollisionGroup]);
+    this.player.body.collides([this.playerCollisionGroup, this.musicFloorCollisionGroup]);
+    this.player.body.collides(this.deadCollisionGroup);
 
+    //  Check for the block hitting another object
+    this.player.body.onBeginContact.add(this.hurtPlayer, this);
     this.deadzones = this.setupDeadZones();
 
     soundModule.signal.add((...params) => { this.onSound(...params); });
@@ -73,13 +75,14 @@ class State extends Phaser.State {
   setupDeadZones() {
     var currentX = 0;
     var output = [];
-    const deadline_y = game.height - DEADLINE_HEIGHT/2;
+    const deadline_y = game.height - DEADLINE_HEIGHT / 2;
     while (currentX < game.width) {
       var deadzone = game.add.sprite(currentX, deadline_y, 'spears');
       game.physics.p2.enable(deadzone);
-      deadzone.body.static=true;
+      deadzone.body.static = true;
       deadzone.body.setCollisionGroup(this.deadCollisionGroup);
-      deadzone.body.collides([this.playerCollisionGroup], this.hurtPlayer, this);
+
+      deadzone.body.collides(this.playerCollisionGroup);
       output.push(deadzone);
       currentX += deadzone.width;
     }
@@ -145,10 +148,14 @@ class State extends Phaser.State {
 
   }
 
-  hurtPlayer(sprite1, sprite2) {
+  hurtPlayer(body, bodyB, shapeA, shapeB, equation) {
     console.log("hurtPlayer");
-    this.player.lifeCount--;
-    this.lifeText.setText(this.player.lifeCount);
+    if (body && body.sprite && body.sprite.key === 'spears') {
+      console.log("spears");
+      this.player.lifeCount--;
+      this.lifeText.setText(this.player.lifeCount);
+      this.player.body.y = 30;
+    }
   }
 
   onSound(y0Pitch, y1Pitch, y0Amplitude, y1Amplitude) {
@@ -158,8 +165,8 @@ class State extends Phaser.State {
     var singIndex = Math.round(normalized0 * 11);
     // console.log('noteStrings', soundModule.noteStrings[index]);
     //console.log('onSound',
-      // normalized0, soundModule.noteStrings[singIndex],
-      // normalized1, '');
+    // normalized0, soundModule.noteStrings[singIndex],
+    // normalized1, '');
     this.musicFloors.forEach((elem, id) => {
       if (Math.abs(id - index) < 3) {
         // const heightLimit = 500 - y0Amplitude * 70;
