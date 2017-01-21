@@ -1,8 +1,8 @@
 
 /* global soundModule */
 var yAxis = p2.vec2.fromValues(0, 1);
-var PLATFORM_STEPS = 10;
 const DEADLINE_HEIGHT =  160;
+const PLATFORM_WIDTH = 100;
 const PLAYER_INIT_LIFE_COUNT = 4;
 
 class State extends Phaser.State {
@@ -50,13 +50,15 @@ class State extends Phaser.State {
     //   const wall = this.createWall(100 * i, 500);
     // }
     this.musicFloors = [];
-    const xInterval = game.width / PLATFORM_STEPS;
-    for (let i = 0; i < PLATFORM_STEPS; i++) {
-      const musicFloor = this.createMusicFloor(i * xInterval, 510);
+    const wall = this.createWall(PLATFORM_WIDTH/2, 500);
+    var currentMusicX = PLATFORM_WIDTH* 1.5;
+    while (currentMusicX < game.width) {
+      const musicFloor = this.createMusicFloor(currentMusicX, 500);
       this.musicFloors.push(musicFloor);
+      currentMusicX += PLATFORM_WIDTH;
     }
 
-    this.player = game.add.sprite(300, 300, 'character');
+    this.player = game.add.sprite(PLATFORM_WIDTH/2, 300, 'character');
     this.player.lifeCount = PLAYER_INIT_LIFE_COUNT;
     this.player.scale.setTo(1);
     //  Enable if for physics. This creates a default rectangular body.
@@ -154,7 +156,7 @@ class State extends Phaser.State {
   onSound(y0Pitch, y1Pitch, y0Amplitude, y1Amplitude) {
     const normalized0 = y0Pitch / 6.5;
     const normalized1 = y1Pitch / 6.5;
-    var index = Math.round(normalized0 * PLATFORM_STEPS);
+    var index = Math.round(normalized0 * 12);
     var singIndex = Math.round(normalized0 * 11);
     // console.log('noteStrings', soundModule.noteStrings[index]);
     //console.log('onSound',
@@ -188,15 +190,15 @@ class State extends Phaser.State {
     });
   }
 
-  // createWall(x, y) {
-  //   var wall = game.add.sprite(x, y, 'wall');
-  //   game.physics.p2.enable(wall);
-  //   wall.body.static = true;
+  createWall(x, y) {
+    var wall = game.add.sprite(x, y, 'wall');
+    game.physics.p2.enable(wall);
+    wall.body.static = true;
 
-  //   wall.body.setCollisionGroup(this.playerCollisionGroup);
-  //   wall.body.collides([this.playerCollisionGroup]);
-  //   return wall;
-  // }
+    wall.body.setCollisionGroup(this.playerCollisionGroup);
+    wall.body.collides([this.playerCollisionGroup]);
+    return wall;
+  }
 
   createMusicFloor(x, y) {
     var wall = game.add.sprite(x, y, 'wall');
