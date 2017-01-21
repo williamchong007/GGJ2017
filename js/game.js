@@ -19,12 +19,29 @@ class State extends Phaser.State {
     game.add.tileSprite(0, 0, 1280, 720, 'background');
 
     this.lifeText = game.add.text(20, 20, "4", {
-      font: "20px Arial",
+      font: "30px Arial black",
       fill: "#ff0044",
       align: "center"
     });
 
     this.lifeText.anchor.setTo(0, 0);
+
+
+    this.gotScrollText = game.add.text(game.width - 20, 20, "0", {
+      font: "30px Arial black",
+      fill: "#00ff44",
+      align: "center"
+    });
+    this.gotScrollText.anchor.setTo(1, 0);
+
+    this.winlText = game.add.text(game.width / 2, game.height / 2, "You Win!", {
+      font: "60px Arial black",
+      fill: "#00ff44",
+      stroke: "#00ff44",
+      align: "center"
+    });
+    this.winlText.anchor.setTo(0.5);
+    this.winlText.visible = false;
 
     game.stage.backgroundColor = "#4488AA";
 
@@ -53,46 +70,46 @@ class State extends Phaser.State {
     //   const wall = this.createWall(100 * i, 500);
     // }
     this.musicFloors = [];
-    const wall = this.createWall(PLATFORM_WIDTH/2, 500);
-    var currentMusicX = PLATFORM_WIDTH* 1.5;
+    const wall = this.createWall(PLATFORM_WIDTH / 2, 500);
+    var currentMusicX = PLATFORM_WIDTH * 1.5;
     while (currentMusicX < game.width) {
       const musicFloor = this.createMusicFloor(currentMusicX, 500);
       this.musicFloors.push(musicFloor);
       currentMusicX += PLATFORM_WIDTH;
     }
 
-    this.player = game.add.sprite(PLATFORM_WIDTH/2, 300, 'character');
+    this.player = game.add.sprite(PLATFORM_WIDTH / 2, 300, 'character');
     this.player.lifeCount = PLAYER_INIT_LIFE_COUNT;
     //  Enable if for physics. This creates a default rectangular body.
     game.physics.p2.enable(this.player);
 
     this.player.body.setCollisionGroup(this.playerCollisionGroup);
     this.player.body.collides([this.playerCollisionGroup, this.musicFloorCollisionGroup]);
-    this.player.body.collides(this.deadCollisionGroup);
+    this.player.body.collides([this.deadCollisionGroup, this.scrollCollisionGroup]);
 
     //  Check for the block hitting another object
     this.player.body.onBeginContact.add(this.hurtPlayer, this);
     this.deadzones = this.setupDeadZones();
     this.scrolls = this.setup_level_1();
+    this.player.scollGot = 0;
     this.scrollGoal = this.scrolls.length;
 
     soundModule.signal.add((...params) => { this.onSound(...params); });
   }
 
 
-  setup_level_1 () {
+  setup_level_1() {
     var output = [];
-    var scroll = game.add.sprite(1250, 150, 'scroll');
+    var scroll = game.add.sprite(1130, 150, 'scroll');
     //  Enable if for physics. This creates a default rectangular body.
     game.physics.p2.enable(scroll);
     scroll.body.static = true;
 
     scroll.body.setCollisionGroup(this.scrollCollisionGroup);
-    scroll.body.collides([this.playerCollisionGroup, this.scrollCollisionGroup]);
+    scroll.body.collides([this.playerCollisionGroup]);
     output.push(scroll);
     return output
   }
-
 
   setupDeadZones() {
     var currentX = 0;
@@ -100,9 +117,10 @@ class State extends Phaser.State {
     const deadline_y = game.height - DEADLINE_HEIGHT;
     while (currentX < game.width) {
       var deadzone = game.add.sprite(currentX, deadline_y, 'spears');
+      deadzone.anchor.setTo(0, 0);
       game.physics.p2.enable(deadzone);
-      deadzone.anchor.setTo(0,0);
-      deadzone.body.static=true;
+      deadzone.body.y = game.height - DEADLINE_HEIGHT / 2;
+      deadzone.body.static = true;
       deadzone.body.setCollisionGroup(this.deadCollisionGroup);
 
       deadzone.body.collides(this.playerCollisionGroup);
@@ -178,14 +196,47 @@ class State extends Phaser.State {
       this.player.lifeCount--;
       this.lifeText.setText(this.player.lifeCount);
       this.player.body.y = 30;
+    } else if (body && body.sprite && body.sprite.key === 'scroll') {
+      console.log("scroll");
+      this.getScroll();
+      body.sprite.destroy();
     }
   }
 
   getScroll(sprite1, sprite2) {
     this.player.scollGot++;
+    this.gotScrollText.setText(this.player.scollGot);
     if (this.player.scollGot >= this.scrollGoal) {
-       //win 
+      this.win();
     }
+  }
+
+  win() {
+    console.log('win');
+    this.winlText.visible = true;
+
+    setTimeout(() => {
+      this.winlText.visible = false;
+
+      this.cleanUp();
+
+      this.nextRoom();
+    }, 2000);
+  }
+
+  lose() {
+    console.log('lose');
+    this.cleanUp();
+  }
+
+  cleanUp() {
+    console.log('cleanUp');
+    this.player.scollGot = 0;
+  }
+
+  nextRoom() {
+    console.log('nextRoom');
+
   }
 
   onSound(y0Pitch, y1Pitch, y0Amplitude, y1Amplitude) {
